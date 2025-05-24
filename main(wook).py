@@ -1,4 +1,9 @@
-from Gmail_contents import GmailReader
+
+import os
+
+from data import emails
+from  sortingMails import sortingMails
+from Gmail_contents import gmail1
 from sortingMails import EmailClassifier
 import datetime
 
@@ -65,7 +70,7 @@ def generate_html(categorized_emails):
     """
     
     return html
-
+"""
 def main():
     # Gmail 이메일 가져오기
     gmail_reader = GmailReader()
@@ -87,3 +92,13 @@ def main():
 
 if __name__ == "__main__":
     main() 
+
+"""
+base_dir = os.path.dirname(os.path.abspath(__file__))
+data_dir = os.path.join(base_dir, 'data\emails.py')
+
+if hasattr(emails, 'emails') :
+    sortingMails.checkSpam()
+else :
+    reader = gmail1.GmailReader()
+    reader.save_emails_to_py(filename = data_dir, maxresults=10)
