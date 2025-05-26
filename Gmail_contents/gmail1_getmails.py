@@ -11,7 +11,7 @@ import os.path
 import base64
 import csv
 
-number_of_mails = 10
+number_of_mails = 50
 
 class GmailReader:
     def __init__(self):
@@ -88,7 +88,8 @@ class GmailReader:
                 'subject': subject,
                 'sender': sender,
                 'body': body,
-                'date': date
+                'date': date,
+                'categoryIndex':0
             })
         return emails
     """

@@ -1,5 +1,5 @@
-from Gmail_contents import GmailReader
-from sortingMails import EmailClassifier
+from Gmail_contents import gmail1_getmails
+from sortingMails import sortingMails
 import datetime
 
 def generate_html(categorized_emails):

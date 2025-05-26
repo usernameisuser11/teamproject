@@ -1,16 +1,40 @@
-from data import emails
+from Gmail_contents import gmail1_getmails
 
 
-check_security = ['인증', '보안']
 
+check_security = ["Security", "보안",
+    "Authentication", "인증",
+    "Verification", "확인",
+    "Confirm", "확인하다",
+    "Confirmation", "확인",
+    "Validation", "검증",
+    "Account verification", "계정 확인",
+    "Identity verification", "신원 확인",
+    "Secure", "안전한",
+    "Two-factor authentication", "2단계 인증",
+    "OTP", "일회용 비밀번호",
+    "Password reset", "비밀번호 재설정",
+    "Account recovery", "계정 복구",
+    "Access alert", "접속 알림",
+    "Alert", "경고",
+    "Notification"]
+check_spam = ['광고', '특가', '세일', '혜택', '멤버십', 'promotion', 'advertisement', 'Ad', 'Deal', 'Sale', 'Limited time offer']
+reader = gmail1_getmails.GmailReader()
+emails = reader.get_emails()
 
-def checkSpam() :
-    check_spam = '멤버십'
+def sortingMails(emails) :
     spamMail = []
-    nonSpam = []
-    for mail in range(len(emails.emails)) :
-        if check_spam in emails.emails[mail]['subject'] or check_spam in emails.emails[mail]['body']:
-            spamMail.append(emails.emails[mail])
+    securityMail = []
+    commonMail = []
+    for mail in range(len(emails)) :
+        if any(spam_word in emails[mail]['subject'] or spam_word in emails[mail]['body'] for spam_word in check_spam) :
+            spamMail.append(emails[mail])
+            emails[mail]['categoryIndex'] = 3
+        elif any( security_word in emails[mail]['subject'] or security_word in emails[mail]['body'] for security_word in check_security) :
+            securityMail.append(emails[mail])
+            emails[mail]['categoryIndex'] = 2
         else :
-            nonSpam.append(emails.emails[mail])
-    print(spamMail)
+            commonMail.append(emails[mail])
+            emails[mail]['categoryIndex'] = 1
+
+    return emails
