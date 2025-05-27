@@ -9,7 +9,6 @@ from googleapiclient.discovery import build
 import pickle
 import os.path
 import base64
-import csv
 
 number_of_mails = 50
 
@@ -36,7 +35,7 @@ class GmailReader:
                 # 새로운 인증 진행
 
                 base_dir = os.path.dirname(os.path.abspath(__file__))
-                credentials_path = os.path.join(base_dir, 'credentials.json')
+                credentials_path = os.path.join(base_dir, 'credential.json')
                 flow = InstalledAppFlow.from_client_secrets_file(
                     credentials_path, self.SCOPES)
                 self.creds = flow.run_local_server(port=0)
@@ -92,22 +91,3 @@ class GmailReader:
                 'categoryIndex':0
             })
         return emails
-    """
-    def save_emails_to_csv(self, filename='emails.csv', maxresults=10):
-        
-        emails = self.get_emails(max_results=maxresults)
-
-        with open(filename, mode='w', newline='', encoding='utf-8-sig') as f:
-            writer =csv.DictWriter(f, fieldnames=['subject','sender','date', 'body'])
-            writer.writeheader()
-            for email in emails:
-                    writer.writerow(email)
-    """
-    def save_emails_to_py(self, filename, maxresults=10):
-        """이메일을 파이썬 파일(.py)로 딕셔너리 리스트 형태로 저장"""
-        emails = self.get_emails(max_results=maxresults)
-
-        with open(filename, 'w', encoding='utf-8') as f:
-            f.write("# -*- coding: utf-8 -*-\n")
-            f.write("emails = ")
-            f.write(repr(emails))
