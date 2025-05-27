@@ -9,4 +9,4 @@ if not os.path.exists(os.path.join(credential_path, "Gmail_contents," "credentia
 getmails = gmail1_getmails.GmailReader()
 getmails.authenticate()
 gotmails = getmails.get_emails()
-# gmail2_mysql.SaveDatabase(emails=sortingMails.sortingMails(emails=gotmails))
+gmail2_mysql.SaveDatabase(emails=sortingMails.sortingMails(emails=gotmails))
