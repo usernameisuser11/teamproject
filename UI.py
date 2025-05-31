@@ -15,32 +15,13 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 import html2text
 
-# Gmail API 범위
-SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
-
 class GmailUI(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Gmail Client")
         self.resize(1200, 800)
-        self.gmail_service = self.authenticate_gmail()
         self.init_ui()
         self.load_emails()
-
-    def authenticate_gmail(self):
-        """Gmail API 인증"""
-        creds = None
-        if os.path.exists('token.json'):
-            creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-        if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
-            else:
-                flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
-                creds = flow.run_local_server(port=0)
-            with open('token.json', 'w') as token:
-                token.write(creds.to_json())
-        return build('gmail', 'v1', credentials=creds)
 
     def init_ui(self):
         # 메인 레이아웃
@@ -56,26 +37,9 @@ class GmailUI(QWidget):
             }
         """)
         sidebar_layout = QVBoxLayout()
-        
-        # Compose 버튼
-        compose_btn = QPushButton("Compose")
-        compose_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #c2e7ff;
-                border: none;
-                border-radius: 16px;
-                padding: 12px 24px;
-                font-weight: bold;
-                color: #001d35;
-            }
-            QPushButton:hover {
-                background-color: #b1d9f0;
-            }
-        """)
-        sidebar_layout.addWidget(compose_btn)
-        
+
         # 메뉴 항목들
-        menu_items = ["Inbox", "Starred", "Sent", "Drafts", "Spam", "Trash"]
+        menu_items = ["common", "Security", "Spam", "Trash"]
         for item in menu_items:
             btn = QPushButton(item)
             btn.setStyleSheet("""
@@ -158,10 +122,9 @@ class GmailUI(QWidget):
         
         # 이벤트 연결
         self.email_list.itemClicked.connect(self.show_email_detail)
-        compose_btn.clicked.connect(self.compose_email)
 
     def load_emails(self):
-        """이메일 목록 로드"""
+        """이메일 목록 로드
         try:
             results = self.gmail_service.users().messages().list(
                 userId='me', maxResults=20).execute()
@@ -183,7 +146,7 @@ class GmailUI(QWidget):
                 
         except Exception as e:
             print(f"Error loading emails: {str(e)}")
-
+        """
     def show_email_detail(self, item):
         """이메일 상세 내용 표시"""
         try:
