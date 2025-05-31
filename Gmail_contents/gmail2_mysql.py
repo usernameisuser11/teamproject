@@ -14,12 +14,15 @@ def SaveDatabase(emails):
     contents = emails
 
 
+
     try:
         with conn.cursor() as cursor:
-            for index in range(len(contents)) :
-                sql = "INSERT INTO contents (subject, sender, date, body, Category_index) VALUES (%s, %s, %s, %s, %s)"
-                values = (contents[index]["subject"], contents[index]["sender"], contents[index]["date"], contents[index]["body"], contents[index]["categoryIndex"])
-                cursor.execute(sql, values)
+            already_got_data = cursor.execute("SELECT * FROM contents LIMIT 50;")
+            if not already_got_data == contents :
+                for index in range(len(contents)) :
+                    sql = "INSERT INTO contents (subject, sender, date, body, Category_index) VALUES (%s, %s, %s, %s, %s)"
+                    values = (contents[index]["subject"], contents[index]["sender"], contents[index]["date"], contents[index]["body"], contents[index]["categoryIndex"])
+                    cursor.execute(sql, values)
         conn.commit()
 
     finally:
