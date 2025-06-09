@@ -1,19 +1,62 @@
 import sys
-import os.path
-import base64
-from email import message_from_bytes
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,
-    QListWidget, QLabel, QPushButton, QTextEdit, QLineEdit,
-    QSplitter, QFrame, QScrollArea
+    QListWidget, QPushButton, QTextEdit, QLineEdit,
+    QSplitter, QFrame, QListWidgetItem
 )
-from PyQt5.QtCore import Qt, QSize
-from PyQt5.QtGui import QIcon, QFont
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
-import html2text
+from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QLabel
+from PyQt5.QtGui import QTextDocument
+import pymysql
+import pymysql
+
+## 본문이 html 인지 판별 ##
+def is_html(text):
+    lowered = text.lower()
+    return '<html' in text.lower() or '<body' in text.lower() or '<div' in text.lower() or '<p' in text.lower()
+
+def html_to_plain_text(html):
+    doc = QTextDocument()
+    doc.setHtml(html)
+    return doc.toPlainText()
+
+## 데이터 베이스에서 자료 가져오기 ##
+# MySQL 서버 접속 설정
+conn = pymysql.connect(
+    host='34.171.166.56',       # 또는 외부 IP
+    user='root',            # MySQL 사용자 이름
+    password='#Publicwook1134',  # 비밀번호
+    database='mails',  # 사용할 데이터베이스 이름
+    charset='utf8mb4',      # 한글 저장 가능하게
+    port = 3306,
+    cursorclass=pymysql.cursors.DictCursor  # 결과를 딕셔너리로 받기
+)
+
+try:
+    with conn.cursor() as cursor:
+        #SQL 쿼리 실행
+        sql = "SELECT id, body, sender, subject, Category_index FROM contents"
+        cursor.execute(sql)
+
+        #결과를 리스트[dict] 형태로 가져오기
+        mails = cursor.fetchall()
+
+finally:
+    conn.close()
+
+common_mails = []
+spam_mails = []
+security_mails = []
+
+for i in range(len(mails)) :
+    if mails[i]['Category_index'] == 2 :
+        security_mails.append(mails[i])
+    if mails[i]['Category_index'] == 3 :
+        spam_mails.append(mails[i])
+    else :
+        common_mails.append(mails[i])
+        
+
 
 class GmailUI(QWidget):
     def __init__(self):
@@ -21,12 +64,11 @@ class GmailUI(QWidget):
         self.setWindowTitle("Gmail Client")
         self.resize(1200, 800)
         self.init_ui()
-        self.load_emails()
 
     def init_ui(self):
         # 메인 레이아웃
         main_layout = QHBoxLayout()
-        
+
         # 왼쪽 사이드바
         sidebar = QFrame()
         sidebar.setMaximumWidth(200)
@@ -37,9 +79,9 @@ class GmailUI(QWidget):
             }
         """)
         sidebar_layout = QVBoxLayout()
-
+        
         # 메뉴 항목들
-        menu_items = ["common", "Security", "Spam", "Trash"]
+        menu_items = ["common", "Security", "Spam"]
         for item in menu_items:
             btn = QPushButton(item)
             btn.setStyleSheet("""
@@ -55,14 +97,22 @@ class GmailUI(QWidget):
                 }
             """)
             sidebar_layout.addWidget(btn)
-        
+            if item == "Spam":
+                btn.clicked.connect(self.SpamMailsList)
+            elif item == "common":
+                btn.clicked.connect(self.CommonMailsList)
+            elif item == "Security" :
+                btn.clicked.connect(self.SecurityMailsList)
+            
+
+
         sidebar_layout.addStretch()
         sidebar.setLayout(sidebar_layout)
-        
+
         # 중앙 영역
         center_widget = QWidget()
         center_layout = QVBoxLayout()
-        
+
         # 검색 바
         search_layout = QHBoxLayout()
         self.search_input = QLineEdit()
@@ -78,9 +128,10 @@ class GmailUI(QWidget):
         search_layout.addWidget(self.search_input)
         center_layout.addLayout(search_layout)
         
+
         # 이메일 리스트와 상세 보기 영역
         content_splitter = QSplitter(Qt.Horizontal)
-        
+
         # 이메일 리스트
         self.email_list = QListWidget()
         self.email_list.setStyleSheet("""
@@ -96,7 +147,7 @@ class GmailUI(QWidget):
                 background-color: #f1f3f4;
             }
         """)
-        
+
         # 이메일 상세 보기
         self.email_detail = QTextEdit()
         self.email_detail.setReadOnly(True)
@@ -107,108 +158,60 @@ class GmailUI(QWidget):
                 padding: 16px;
             }
         """)
-        
+
         content_splitter.addWidget(self.email_list)
         content_splitter.addWidget(self.email_detail)
         content_splitter.setSizes([400, 600])
-        
+
         center_layout.addWidget(content_splitter)
         center_widget.setLayout(center_layout)
-        
+
         # 레이아웃 조립
         main_layout.addWidget(sidebar)
         main_layout.addWidget(center_widget)
         self.setLayout(main_layout)
-        
-        # 이벤트 연결
-        self.email_list.itemClicked.connect(self.show_email_detail)
+    
+    def SpamMailsList(self, index) :
+        self.email_list.clear() 
+        for i in range(len(spam_mails)) :
+            item = QListWidgetItem(self.email_list)
+            subject_labels = QLabel(spam_mails[i]['subject'])
+            subject_labels.setWordWrap(True)
+            self.email_list.setItemWidget(item, subject_labels)
+        self.current_category = spam_mails
+        self.current_mail = i
+        self.email_list.itemClicked.connect(self.Displaydetails)
+    def SecurityMailsList(self, index) :
+        self.email_list.clear() 
+        for i in range(len(security_mails)) :
+            item = QListWidgetItem(self.email_list)
+            subject_labels = QLabel(security_mails[i]['subject'])
+            subject_labels.setWordWrap(True)
+            self.email_list.setItemWidget(item, subject_labels)
+        self.current_category = security_mails
+        self.current_mail = i
+        self.email_list.itemClicked.connect(self.Displaydetails)
+    def CommonMailsList(self, index) :
+        self.email_list.clear() 
+        for i in range(len(common_mails)) :
+            item = QListWidgetItem(self.email_list)
+            subject_labels = QLabel(common_mails[i]['subject'])
+            subject_labels.setWordWrap(True)
+            self.email_list.setItemWidget(item, subject_labels)
+        self.current_category = common_mails
+        self.current_mail = i
+        self.email_list.itemClicked.connect(self.Displaydetails)
+            
+    def Displaydetails(self, item):
+        index = self.email_list.row(item)
+        content = self.current_category[index]['body']
+    
+        if is_html(content):
+            self.email_detail.setHtml(content) 
+        else:
+            self.email_detail.setPlainText(content)
 
-    def load_emails(self):
-        """이메일 목록 로드
-        try:
-            results = self.gmail_service.users().messages().list(
-                userId='me', maxResults=20).execute()
-            messages = results.get('messages', [])
-            
-            self.email_list.clear()
-            for message in messages:
-                msg = self.gmail_service.users().messages().get(
-                    userId='me', id=message['id']).execute()
-                
-                headers = msg['payload']['headers']
-                subject = next((h['value'] for h in headers if h['name'] == 'Subject'), '(No Subject)')
-                sender = next((h['value'] for h in headers if h['name'] == 'From'), 'Unknown')
-                date = next((h['value'] for h in headers if h['name'] == 'Date'), '')
-                
-                # 이메일 아이템 생성
-                item_text = f"{sender}\n{subject}\n{date}"
-                self.email_list.addItem(item_text)
-                
-        except Exception as e:
-            print(f"Error loading emails: {str(e)}")
-        """
-    def show_email_detail(self, item):
-        """이메일 상세 내용 표시"""
-        try:
-            # 선택된 이메일의 인덱스
-            index = self.email_list.row(item)
-            
-            # 해당 이메일의 전체 내용 가져오기
-            results = self.gmail_service.users().messages().list(
-                userId='me', maxResults=20).execute()
-            messages = results.get('messages', [])
-            msg = self.gmail_service.users().messages().get(
-                userId='me', id=messages[index]['id']).execute()
-            
-            # 이메일 본문 추출
-            if 'parts' in msg['payload']:
-                parts = msg['payload']['parts']
-                body = ''
-                for part in parts:
-                    if part['mimeType'] == 'text/html':
-                        body = base64.urlsafe_b64decode(
-                            part['body']['data']).decode('utf-8')
-                        break
-                    elif part['mimeType'] == 'text/plain':
-                        body = base64.urlsafe_b64decode(
-                            part['body']['data']).decode('utf-8')
-            else:
-                body = base64.urlsafe_b64decode(
-                    msg['payload']['body']['data']).decode('utf-8')
-            
-            # HTML을 텍스트로 변환
-            h = html2text.HTML2Text()
-            h.ignore_links = False
-            body = h.handle(body)
-            
-            # 이메일 상세 정보 표시
-            headers = msg['payload']['headers']
-            subject = next((h['value'] for h in headers if h['name'] == 'Subject'), '(No Subject)')
-            sender = next((h['value'] for h in headers if h['name'] == 'From'), 'Unknown')
-            date = next((h['value'] for h in headers if h['name'] == 'Date'), '')
-            
-            detail_text = f"""
-            <div style='font-family: Arial, sans-serif;'>
-                <h2>{subject}</h2>
-                <div style='color: #666; margin-bottom: 20px;'>
-                    <p><strong>From:</strong> {sender}</p>
-                    <p><strong>Date:</strong> {date}</p>
-                </div>
-                <div style='line-height: 1.6;'>
-                    {body}
-                </div>
-            </div>
-            """
-            
-            self.email_detail.setHtml(detail_text)
-            
-        except Exception as e:
-            print(f"Error showing email detail: {str(e)}")
-
-    def compose_email(self):
-        """새 이메일 작성"""
-        # TODO: 이메일 작성 기능 구현
-        pass
+    
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
