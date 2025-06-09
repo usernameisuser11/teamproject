@@ -9,9 +9,9 @@ from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt
 
 # --- 데이터베이스 연결 정보 ---
-DB_HOST = '34.171.166.56'
+DB_HOST = 'localhost'
 DB_USER = 'root'
-DB_PASSWORD = '#Publicwook1134'
+DB_PASSWORD = ''
 DB_NAME = 'mails'
 
 class SimpleLoginWindow(QWidget):
@@ -50,14 +50,22 @@ class SimpleLoginWindow(QWidget):
         main_layout.addSpacing(20)
         links_layout = QHBoxLayout()
         links_layout.setAlignment(Qt.AlignCenter)
-        links_texts = ["아이디 찾기", "비밀번호 찾기", "회원가입"]
-        for i, text in enumerate(links_texts):
-            link_label = QLabel(f"<a href='#'>{text}</a>")
-            link_label.setOpenExternalLinks(False)
-            link_label.linkActivated.connect(lambda t=text: self.show_info_dialog(t))
-            links_layout.addWidget(link_label)
-            if i < len(links_texts) - 1:
-                links_layout.addWidget(QLabel("·"))
+        
+        # 링크 생성 및 이벤트 연결 수정
+        find_id_link = QLabel("<a href='find_id'>아이디 찾기</a>")
+        find_pw_link = QLabel("<a href='find_pw'>비밀번호 찾기</a>")
+        signup_link = QLabel("<a href='signup'>회원가입</a>")
+        
+        find_id_link.linkActivated.connect(lambda: self.show_info_dialog("아이디 찾기"))
+        find_pw_link.linkActivated.connect(lambda: self.show_info_dialog("비밀번호 찾기"))
+        signup_link.linkActivated.connect(lambda: self.show_info_dialog("회원가입"))
+        
+        links_layout.addWidget(find_id_link)
+        links_layout.addWidget(QLabel("·"))
+        links_layout.addWidget(find_pw_link)
+        links_layout.addWidget(QLabel("·"))
+        links_layout.addWidget(signup_link)
+        
         main_layout.addLayout(links_layout)
         main_layout.addStretch(1)
         self.setLayout(main_layout)
@@ -135,26 +143,56 @@ class SimpleLoginWindow(QWidget):
             dialog.setWindowTitle("아이디 찾기")
             dialog.setGeometry(400, 400, 300, 200)
             layout = QVBoxLayout()
+            
             email_label = QLabel("이메일:")
             email_input = QLineEdit()
             submit_button = QPushButton("확인")
-            submit_button.clicked.connect(lambda: self.show_message("아이디 찾기", f"입력한 이메일: {email_input.text()}"))
+            
+            def find_id():
+                email = email_input.text()
+                if not email:
+                    QMessageBox.warning(dialog, "입력 오류", "이메일을 입력해주세요.")
+                    return
+                # 여기서는 테스트용으로 하드코딩된 이메일 사용
+                if email == "test@example.com":
+                    QMessageBox.information(dialog, "아이디 찾기", "회원님의 아이디는 'test' 입니다.")
+                else:
+                    QMessageBox.warning(dialog, "아이디 찾기", "해당 이메일로 등록된 계정이 없습니다.")
+                dialog.close()
+            
+            submit_button.clicked.connect(find_id)
             layout.addWidget(email_label)
             layout.addWidget(email_input)
             layout.addWidget(submit_button)
             dialog.setLayout(layout)
             dialog.exec_()
+            
         elif action == "비밀번호 찾기":
             dialog = QDialog(self)
             dialog.setWindowTitle("비밀번호 찾기")
             dialog.setGeometry(400, 400, 300, 200)
             layout = QVBoxLayout()
+            
             id_label = QLabel("아이디:")
             id_input = QLineEdit()
             email_label = QLabel("이메일:")
             email_input = QLineEdit()
             submit_button = QPushButton("확인")
-            submit_button.clicked.connect(lambda: self.show_message("비밀번호 찾기", f"입력한 아이디: {id_input.text()}, 이메일: {email_input.text()}"))
+            
+            def find_password():
+                user_id = id_input.text()
+                email = email_input.text()
+                if not user_id or not email:
+                    QMessageBox.warning(dialog, "입력 오류", "아이디와 이메일을 모두 입력해주세요.")
+                    return
+                # 여기서는 테스트용으로 하드코딩된 값 사용
+                if user_id == "test" and email == "test@example.com":
+                    QMessageBox.information(dialog, "비밀번호 찾기", "비밀번호 재설정 링크가 이메일로 전송되었습니다.")
+                else:
+                    QMessageBox.warning(dialog, "비밀번호 찾기", "일치하는 계정 정보가 없습니다.")
+                dialog.close()
+            
+            submit_button.clicked.connect(find_password)
             layout.addWidget(id_label)
             layout.addWidget(id_input)
             layout.addWidget(email_label)
@@ -162,32 +200,67 @@ class SimpleLoginWindow(QWidget):
             layout.addWidget(submit_button)
             dialog.setLayout(layout)
             dialog.exec_()
+            
         elif action == "회원가입":
             dialog = QDialog(self)
             dialog.setWindowTitle("회원가입")
             dialog.setGeometry(400, 400, 300, 300)
             layout = QVBoxLayout()
+            
             id_label = QLabel("아이디:")
             id_input = QLineEdit()
             pw_label = QLabel("비밀번호:")
             pw_input = QLineEdit()
             pw_input.setEchoMode(QLineEdit.Password)
+            pw_confirm_label = QLabel("비밀번호 확인:")
+            pw_confirm_input = QLineEdit()
+            pw_confirm_input.setEchoMode(QLineEdit.Password)
             email_label = QLabel("이메일:")
             email_input = QLineEdit()
             submit_button = QPushButton("가입")
-            submit_button.clicked.connect(lambda: self.show_message("회원가입", f"입력한 아이디: {id_input.text()}, 이메일: {email_input.text()}"))
+            
+            def sign_up():
+                user_id = id_input.text()
+                password = pw_input.text()
+                password_confirm = pw_confirm_input.text()
+                email = email_input.text()
+                
+                if not all([user_id, password, password_confirm, email]):
+                    QMessageBox.warning(dialog, "입력 오류", "모든 항목을 입력해주세요.")
+                    return
+                    
+                if password != password_confirm:
+                    QMessageBox.warning(dialog, "입력 오류", "비밀번호가 일치하지 않습니다.")
+                    return
+                    
+                # 여기서는 테스트용으로 간단한 유효성 검사만 수행
+                if len(user_id) < 4:
+                    QMessageBox.warning(dialog, "입력 오류", "아이디는 4자 이상이어야 합니다.")
+                    return
+                    
+                if len(password) < 4:
+                    QMessageBox.warning(dialog, "입력 오류", "비밀번호는 4자 이상이어야 합니다.")
+                    return
+                    
+                if "@" not in email:
+                    QMessageBox.warning(dialog, "입력 오류", "올바른 이메일 형식이 아닙니다.")
+                    return
+                
+                QMessageBox.information(dialog, "회원가입", "회원가입이 완료되었습니다.")
+                dialog.close()
+            
+            submit_button.clicked.connect(sign_up)
             layout.addWidget(id_label)
             layout.addWidget(id_input)
             layout.addWidget(pw_label)
             layout.addWidget(pw_input)
+            layout.addWidget(pw_confirm_label)
+            layout.addWidget(pw_confirm_input)
             layout.addWidget(email_label)
             layout.addWidget(email_input)
             layout.addWidget(submit_button)
             dialog.setLayout(layout)
             dialog.exec_()
-
-    def show_message(self, title, message):
-        QMessageBox.information(self, title, message)
 
     def handle_login(self):
         user_id = self.id_input.text()
@@ -196,6 +269,15 @@ class SimpleLoginWindow(QWidget):
             QMessageBox.warning(self, "입력 오류", "아이디와 비밀번호를 모두 입력해주세요.")
             return
         print(f"로그인 시도 - 아이디: {user_id}")
+        
+        # 테스트용 로그인 처리
+        if user_id == "test" and user_pw == "1234":
+            QMessageBox.information(self, "로그인 성공", f"'{user_id}'님, 환영합니다!")
+        else:
+            QMessageBox.warning(self, "로그인 실패", "아이디 또는 비밀번호가 올바르지 않습니다.")
+            
+        # MySQL 연결 부분 주석 처리
+        """
         try:
             conn = pymysql.connect(
                 host=DB_HOST, user=DB_USER, password=DB_PASSWORD,
@@ -214,6 +296,7 @@ class SimpleLoginWindow(QWidget):
         finally:
             if 'conn' in locals() and conn:
                 conn.close()
+        """
 
 if __name__ == "__main__":
     try:
