@@ -8,7 +8,6 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QLabel
 from PyQt5.QtGui import QTextDocument
 import pymysql
-import pymysql
 
 ## 본문이 html 인지 판별 ##
 def is_html(text):
@@ -56,8 +55,21 @@ for i in range(len(mails)) :
     else :
         common_mails.append(mails[i])
         
+## 함수 선언 부분 ##
+#메일을 종류별로 디스플레이에 표시하는 함수
+def SpamMailsList(sortOfMails, self, index) :
+    self.email_list.clear() 
+    for i in range(len(sortOfMails)) :
+        item = QListWidgetItem(self.email_list)
+        subject_labels = QLabel(sortOfMails[i]['subject'])
+        subject_labels.setWordWrap(True)
+        self.email_list.setItemWidget(item, subject_labels)
+    self.current_category = sortOfMails
+    self.current_mail = i
+    self.email_list.itemClicked.connect(self.Displaydetails)
 
 
+## Gui 구현 부분 ##
 class GmailUI(QWidget):
     def __init__(self):
         super().__init__()
