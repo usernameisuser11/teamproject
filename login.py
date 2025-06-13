@@ -1,18 +1,37 @@
 import sys
 import pymysql
+import bcrypt
+import os
+import main
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QPushButton, QCheckBox, QMessageBox,
-    QDialog
+    QDialog, QFrame, QSplitter, QListWidget, QTextEdit, QListWidgetItem
 )
-from PyQt5.QtGui import QFont
+from PyQt5.QtGui import QFont, QTextDocument
 from PyQt5.QtCore import Qt
-
+import subprocess
+currentdir = os.path.dirname(os.path.abspath(__file__))
 # --- 데이터베이스 연결 정보 ---
-DB_HOST = 'localhost'
-DB_USER = 'root'
-DB_PASSWORD = ''
-DB_NAME = 'mails'
+conn = pymysql.connect(
+    host='34.171.166.56',       # 서버 IP
+    user='root',            # MySQL 사용자 이름
+    password='#Publicwook1134',  # 비밀번호
+    database='users',
+    charset='utf8mb4',      # 한글 저장 가능하게
+    port = 3306,
+    cursorclass=pymysql.cursors.DictCursor  # 결과를 딕셔너리로 받기
+)
+## 사용자 정보 파이썬에서 활용 할 수 있게 가져오기 ##
+def getUserdata():
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("USE users")
+            cursor.execute("SELECT id, username, password_hash, created_at FROM user;")
+            userDATA = cursor.fetchall()
+            return userDATA
+    finally:
+        pass
 
 class SimpleLoginWindow(QWidget):
     def __init__(self):
@@ -228,23 +247,42 @@ class SimpleLoginWindow(QWidget):
                 if not all([user_id, password, password_confirm, email]):
                     QMessageBox.warning(dialog, "입력 오류", "모든 항목을 입력해주세요.")
                     return
-                    
-                if password != password_confirm:
+                elif password != password_confirm:
                     QMessageBox.warning(dialog, "입력 오류", "비밀번호가 일치하지 않습니다.")
                     return
-                    
-                # 여기서는 테스트용으로 간단한 유효성 검사만 수행
-                if len(user_id) < 4:
+                elif len(user_id) < 4:
                     QMessageBox.warning(dialog, "입력 오류", "아이디는 4자 이상이어야 합니다.")
                     return
-                    
-                if len(password) < 4:
+                elif len(password) < 4:
                     QMessageBox.warning(dialog, "입력 오류", "비밀번호는 4자 이상이어야 합니다.")
                     return
-                    
-                if "@" not in email:
+                elif "@" not in email:
                     QMessageBox.warning(dialog, "입력 오류", "올바른 이메일 형식이 아닙니다.")
                     return
+                else :
+                    try:
+                        with conn.cursor() as cursor :
+                            hashedpw = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+                            cursor.execute("USE users")
+                            cursor.execute("INSERT INTO user (username, password_hash) VALUES (%s, %s)",(user_id, hashedpw))
+                            conn.commit()
+                            cursor.execute("USE mails")
+                            tableName = user_id+'_contents'
+                            sql = f"""CREATE TABLE `{tableName}` (
+                                id INT AUTO_INCREMENT PRIMARY KEY,
+                                subject VARCHAR(255) NULL,
+                                sender VARCHAR(255) NOT NULL,
+                                date VARCHAR(100) NOT NULL,
+                                body TEXT NULL,
+                                Category_index INT NOT NULL
+                            ); 
+                            """
+                            cursor.execute(sql)
+                            conn.commit()
+                            id = cursor.lastrowid
+                            main.saveDB(Id = id, userName=user_id)
+                    finally:
+                        pass
                 
                 QMessageBox.information(dialog, "회원가입", "회원가입이 완료되었습니다.")
                 dialog.close()
@@ -263,6 +301,7 @@ class SimpleLoginWindow(QWidget):
             dialog.exec_()
 
     def handle_login(self):
+        global userNAME
         user_id = self.id_input.text()
         user_pw = self.pw_input.text()
         if not user_id or not user_pw:
@@ -270,43 +309,32 @@ class SimpleLoginWindow(QWidget):
             return
         print(f"로그인 시도 - 아이디: {user_id}")
         
-        # 테스트용 로그인 처리
-        if user_id == "test" and user_pw == "1234":
-            QMessageBox.information(self, "로그인 성공", f"'{user_id}'님, 환영합니다!")
-        else:
-            QMessageBox.warning(self, "로그인 실패", "아이디 또는 비밀번호가 올바르지 않습니다.")
             
-        # MySQL 연결 부분 주석 처리
-        """
         try:
-            conn = pymysql.connect(
-                host=DB_HOST, user=DB_USER, password=DB_PASSWORD,
-                database=DB_NAME, charset='utf8mb4',
-                cursorclass=pymysql.cursors.DictCursor
-            )
-            with conn.cursor() as cursor:
-                if user_id == "test" and user_pw == "1234":
-                    QMessageBox.information(self, "로그인 성공", f"'{user_id}'님, 환영합니다!")
-                else:
-                    QMessageBox.warning(self, "로그인 실패", "아이디 또는 비밀번호가 올바르지 않습니다.")
+            userDATA = getUserdata()
+            login_success = False
+            for i in range(len(userDATA)) :
+                if userDATA[i]['username'] == user_id :
+                    if bcrypt.checkpw(user_pw.encode('utf-8'), userDATA[i]['password_hash'].encode('utf-8')) :
+                        saveUser = open(currentdir+"\\currentUser.txt","w")
+                        saveUser.writelines(user_id)
+                        saveUser.close()
+                        QMessageBox.information(self, "로그인 성공", f"'{user_id}'님, 환영합니다!")
+                        UI_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'UI.py')
+                        subprocess.Popen(['python', UI_path])
+                        login_success = True
+                        break
+            if not login_success:
+                QMessageBox.warning(self, "로그인 실패", "아이디 또는 비밀번호가 올바르지 않습니다.")
         except pymysql.MySQLError as e:
             QMessageBox.critical(self, "데이터베이스 오류", f"DB 오류: {e}")
         except Exception as e:
             QMessageBox.critical(self, "오류", f"알 수 없는 오류: {e}")
-        finally:
-            if 'conn' in locals() and conn:
-                conn.close()
-        """
-
 if __name__ == "__main__":
     try:
-        print("[DEBUG] QApplication 생성 전")
         app = QApplication(sys.argv)
-        print("[DEBUG] SimpleLoginWindow 생성 전")
         login_window = SimpleLoginWindow()
-        print("[DEBUG] SimpleLoginWindow 생성 후, show() 전")
         login_window.show()
-        print("[DEBUG] show() 후, app.exec_() 전")
         sys.exit(app.exec_())
     except Exception as e:
         print(f"오류 발생: {str(e)}")

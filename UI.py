@@ -5,10 +5,10 @@ from PyQt5.QtWidgets import (
     QSplitter, QFrame, QListWidgetItem
 )
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QLabel
+from PyQt5.QtWidgets import QLabel, QFrame
 from PyQt5.QtGui import QTextDocument
 import pymysql
-
+import login
 ## 본문이 html 인지 판별 ##
 def is_html(text):
     lowered = text.lower()
@@ -34,7 +34,14 @@ conn = pymysql.connect(
 try:
     with conn.cursor() as cursor:
         #SQL 쿼리 실행
-        sql = "SELECT id, body, sender, subject, Category_index FROM contents"
+        toGetUserName = open(login.currentdir+"\\currentUser.txt", "r")
+        userNAME = toGetUserName.readline()
+        toGetUserName.close()
+        toDeleteContents = open(login.currentdir+"\\currentUser.txt", "w")
+        toDeleteContents.truncate(0)
+        toDeleteContents.close()
+        tableName = userNAME +'_contents'
+        sql = f"SELECT id, body, sender, subject, Category_index FROM `{tableName}`"
         cursor.execute(sql)
 
         #결과를 리스트[dict] 형태로 가져오기
@@ -54,20 +61,6 @@ for i in range(len(mails)) :
         spam_mails.append(mails[i])
     else :
         common_mails.append(mails[i])
-        
-## 함수 선언 부분 ##
-#메일을 종류별로 디스플레이에 표시하는 함수
-def SpamMailsList(sortOfMails, self, index) :
-    self.email_list.clear() 
-    for i in range(len(sortOfMails)) :
-        item = QListWidgetItem(self.email_list)
-        subject_labels = QLabel(sortOfMails[i]['subject'])
-        subject_labels.setWordWrap(True)
-        self.email_list.setItemWidget(item, subject_labels)
-    self.current_category = sortOfMails
-    self.current_mail = i
-    self.email_list.itemClicked.connect(self.Displaydetails)
-
 
 ## Gui 구현 부분 ##
 class GmailUI(QWidget):
@@ -76,6 +69,32 @@ class GmailUI(QWidget):
         self.setWindowTitle("Gmail Client")
         self.resize(1200, 800)
         self.init_ui()
+
+    def getAndSortingMails(userNAME,self):
+        try:
+            with conn.cursor() as cursor:
+            #SQL 쿼리 실행
+                tableName = userNAME + "contents"
+                sql = f"SELECT id, body, sender, subject, Category_index FROM `{tableName}`"
+                cursor.execute(sql)
+
+                #결과를 리스트[dict] 형태로 가져오기
+                mails = cursor.fetchall()
+
+        finally:
+            conn.close()
+
+        common_mails = []
+        spam_mails = []
+        security_mails = []
+
+        for i in range(len(mails)) :
+            if mails[i]['Category_index'] == 2 :
+                security_mails.append(mails[i])
+            if mails[i]['Category_index'] == 3 :
+                spam_mails.append(mails[i])
+            else :
+                common_mails.append(mails[i])
 
     def init_ui(self):
         # 메인 레이아웃
@@ -223,10 +242,8 @@ class GmailUI(QWidget):
         else:
             self.email_detail.setPlainText(content)
 
-    
 
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = GmailUI()
-    window.show()
-    sys.exit(app.exec_())
+app = QApplication(sys.argv)
+window = GmailUI()
+window.show()
+sys.exit(app.exec_())
